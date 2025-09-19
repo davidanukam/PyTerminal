@@ -195,6 +195,52 @@ def Parser(text):
                             
                         found = True
                 print("No such file or directory") if not found else None
+
+    # NOTE: Move Directory / File
+    if tokens[0] == "mv":
+        if len(tokens) == 3:
+            target = tokens[1]
+            target_root, target_ext = os.path.splitext(target)
+            dest = tokens[2]
+            dest_root, dest_ext = os.path.splitext(dest)
+            
+            dest_item = None
+            dest_path = f"{working_dir.name}"
+            valid_dest = False
+            
+            for item in working_dir.children:
+                item_name_root, item_name_ext = os.path.splitext(item.name)
+                if item_name_root == f"{working_dir.name}/{dest_root}":
+                    if isinstance(item, File):
+                        print(f"{dest_root} is a File. Destination must be a Directory")
+                    else:
+                        valid_dest = True
+                        dest_item = item
+                        dest_path = f"{working_dir.name}/{dest_root}"
+            
+            # Move to dest Directory
+            if valid_dest:
+                for item in working_dir.children:
+                    item_name_root, item_name_ext = os.path.splitext(item.name)
+                    item_name_tokens = item_name_root.split("/")
+                    if item_name_root == f"{working_dir.name}/{target_root}":
+                        new_name = ""
+                        if isinstance(item, File):
+                            new_name = f"{dest_path}/{item_name_tokens[-1]}{item_name_ext}"
+                        else:
+                            new_name = f"{dest_path}/{item_name_tokens[-1]}"
+                        
+                        # Remove from old Directory
+                        working_dir.children.remove(item)
+                        
+                        # Update item path
+                        item.name = new_name
+                        
+                        # Add to new Directory
+                        dest_item.children.append(item)
+                        
+                        print(f"Moved {item.name} to {new_name}")
+                        break
     
 # Main Loop
 while running:
@@ -207,7 +253,5 @@ while running:
         running = False
     elif x.lower() == "clear" or x.lower() == "cls":
         os.system("cls")
-    elif x.lower() == "m":
-        print(f"[]")
     else:
         Parser(x.strip())
