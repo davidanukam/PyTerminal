@@ -57,7 +57,25 @@ def Parser(text):
             if tokens[1] in ["-l", "-L"]:
                 if len(working_dir.children) > 0:
                     for item in working_dir.children:
-                        print(f"{get_dir_name(item)} : <{"DIR" if type(item).__name__ == "Directory" else "FILE"}> [{item.time_made}]\t")
+                        print(f"{get_dir_name(item)} : <{"DIR" if isinstance(item, Directory) else "FILE"}> [{item.time_made}]\t")
+            elif tokens[1] in ["*", "**"]:
+                if tokens[1] == "*":
+                    if len(working_dir.children) > 0:
+                        for item in working_dir.children:
+                            print(f"{get_dir_name(item)}\t", end="")
+                        print()
+                elif tokens[1] == "**":
+                    def rget_all_children(wd):
+                        if len(wd.children) > 0:
+                            for item in wd.children:
+                                if isinstance(item, Directory):
+                                    print(f"{get_dir_name(item)}\t", end="")
+                                    rget_all_children(item)
+                                else:
+                                    print(f"{get_dir_name(item)}\t", end="")
+                
+                    rget_all_children(working_dir)
+                    print()
     
     # NOTE: Change Directory
     if tokens[0] in ["cd", "cd.."]:
