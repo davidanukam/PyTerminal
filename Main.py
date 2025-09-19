@@ -37,6 +37,9 @@ def Parser(text):
         dir_name = dir_tokens[-1]
         return dir_name
     
+    # TODO: pwd, date, cal (calendar), cp (-r), mv, help (h), find, tar
+    # TODO: for inputs that require more than 1 token --> If only 1 token is given, then say eg. Usage: rm [-rR] <dir/file>
+    
     # NOTE: Make file
     if tokens[0] in ["touch", "t"]:
         if len(tokens) == 2:
