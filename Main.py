@@ -77,7 +77,7 @@ def Parser(text):
 
             if not os.path.exists(full_path):
                 open(full_path, "x")
-                new_file = File(filename, working_dir, curr_time)
+                new_file = File(f"{working_dir.name}/{filename}", working_dir, curr_time)
                 working_dir.children.append(new_file)
             else:
                 print(f"{filename} file already exists")
@@ -167,11 +167,16 @@ def Parser(text):
             # Find and remove File
             found = False
             for item in working_dir.children:
-                if item.name == f"{working_dir.name}/{tokens[1]}":
-                    if isinstance(item, File):
+                if isinstance(item, File):
+                    # Remove file format (eg. .txt) from each File item and the given file to check
+                    root, ext = os.path.splitext(item.name)
+                    token_root, token_ext = os.path.splitext(tokens[1])
+                    if f"{root}" == f"{working_dir.name}/{token_root}":
+                        os.remove(f"{item.name}")
                         working_dir.children.remove(item)
                         found = True
-                    else:
+                else:
+                    if item.name == f"{working_dir.name}/{tokens[1]}":
                         print(f"{tokens[1]} is a directory. Please use the '-r' or '-R' alias")
                         found = True
             print("No such file or directory") if not found else None
