@@ -6,6 +6,9 @@ import os
 import shutil
 import time
 
+# TODO: pwd, date, cal (calendar), cp (-r), mv, help (h), find, tar
+# TODO: for inputs that require more than 1 token --> If only 1 token is given, then say eg. Usage: rm [-rR] <dir/file>
+
 RED = '\033[31m'
 GREEN = '\033[32m'
 YELLOW = '\033[33m'
@@ -29,6 +32,13 @@ home = Directory(name) if name.isalpha() else Directory("home")
 working_dir = home
 os.mkdir(home.name)
 
+### NOTE: Helper Functions ###
+
+def get_dir_name(dir):
+    dir_tokens = dir.name.split("/")
+    dir_name = dir_tokens[-1]
+    return dir_name
+
 def remove_dir(folder_path):
     for filename in os.listdir(folder_path):
         file_path = os.path.join(folder_path, filename)
@@ -38,60 +48,63 @@ def remove_dir(folder_path):
             shutil.rmtree(file_path)
     os.removedirs(folder_path)
 
+def remove_file(file_path):
+    os.remove(file_path)
+
 def Parser(text):
     global working_dir
     
     tokens = text.split(" ")
     
-    def get_dir_name(dir):
-        dir_tokens = dir.name.split("/")
-        dir_name = dir_tokens[-1]
-        return dir_name
+    ### NOTE: Main Functions ###
     
-    # TODO: pwd, date, cal (calendar), cp (-r), mv, help (h), find, tar
-    # TODO: for inputs that require more than 1 token --> If only 1 token is given, then say eg. Usage: rm [-rR] <dir/file>
+    def make_file(file_name, path=None):
+        full_path = os.path.join(working_dir.name, file_name) if not path else path
+
+        if not os.path.exists(full_path):
+            open(full_path, "x")
+            new_file = File(f"{working_dir.name}/{file_name}", working_dir, curr_time)
+            working_dir.children.append(new_file)
+        else:
+            print(f"{file_name} file already exists")
+    
+    def open_file():
+        for item in working_dir.children:
+            if item.name == f"{working_dir.name}/{tokens[1]}":
+                if isinstance(item, File):
+                    with open(f"{item.name}") as f:
+                        print(f.read())
+                else:
+                    print(f"{tokens[1]} is not a directory")
+    
+    ### NOTE: Parser Logic ###
     
     # NOTE: Make file
     if tokens[0] in ["touch", "t"]:
         if len(tokens) == 2:
-            # Get format of file first
-            file_format = "txt"
-
-            def get_final_filename(filename, default_ext="txt"):
-                """
-                Returns the filename with the correct extension, 
-                appending the default if one does not exist.
-                """
-                # Split the filename into a root and an extension
-                root, ext = os.path.splitext(filename)
-                
-                # If there is no extension, add the default
-                if not ext:
-                    return f"{filename}.{default_ext}"
-                else:
-                    return filename
-
-            # Get the desired filename, correcting it if needed
-            filename = get_final_filename(tokens[1], default_ext=file_format)
-            full_path = os.path.join(working_dir.name, filename)
-
-            if not os.path.exists(full_path):
-                open(full_path, "x")
-                new_file = File(f"{working_dir.name}/{filename}", working_dir, curr_time)
-                working_dir.children.append(new_file)
+            # Check if file extension was provided
+            parts = tokens[1].split(".")
+            if len(parts) == 2:
+                make_file(tokens[1])
+            elif len(parts) < 2:
+                print("Please provide file extension (eg, .txt, .py)")
             else:
-                print(f"{filename} file already exists")
+                print("Invalid file name (only 1 . allowed)")
     
     # NOTE: Open file
     if tokens[0] in ["nano", "n"]:
         if len(tokens) == 2:
-            for item in working_dir.children:
-                if item.name == f"{working_dir.name}/{tokens[1]}":
-                    if isinstance(item, File):
-                        with open(f"{item.name}{item.format}") as f:
-                            print(f.read())
-                    else:
-                        print(f"{tokens[1]} is not a directory")
+            open_file()
+            
+    # NOTE: Make Directory
+    if tokens[0] in ["mkdir", "mkd"]:
+        if len(tokens) == 2:
+            if not os.path.exists(f"{working_dir.name}/{tokens[1]}"):
+                os.mkdir(f"{working_dir.name}/{tokens[1]}")
+                new_dir = Directory(f"{working_dir.name}/{tokens[1]}", working_dir, curr_time)
+                working_dir.children.append(new_dir)
+            else:
+                print(f"{tokens[1]} directory already exists")
     
     # NOTE: List Directory
     if tokens[0] == "ls":
@@ -151,16 +164,6 @@ def Parser(text):
             else:
                 working_dir = working_dir.parent
     
-    # NOTE: Make Directory
-    if tokens[0] in ["mkdir", "mkd"]:
-        if len(tokens) == 2:
-            if not os.path.exists(f"{working_dir.name}/{tokens[1]}"):
-                os.mkdir(f"{working_dir.name}/{tokens[1]}")
-                new_dir = Directory(f"{working_dir.name}/{tokens[1]}", working_dir, curr_time)
-                working_dir.children.append(new_dir)
-            else:
-                print(f"{tokens[1]} directory already exists")
-    
     # NOTE: Remove Directory / File
     if tokens[0] == "rm":
         if len(tokens) == 2:
@@ -168,11 +171,9 @@ def Parser(text):
             found = False
             for item in working_dir.children:
                 if isinstance(item, File):
-                    # Remove file format (eg. .txt) from each File item and the given file to check
-                    root, ext = os.path.splitext(item.name)
-                    token_root, token_ext = os.path.splitext(tokens[1])
-                    if f"{root}" == f"{working_dir.name}/{token_root}":
-                        os.remove(f"{item.name}")
+                    if item.name == f"{working_dir.name}/{tokens[1]}":
+                        remove_file(item.name)
+                        
                         working_dir.children.remove(item)
                         found = True
                 else:
@@ -185,13 +186,17 @@ def Parser(text):
                 # Find and remove Directory
                 found = False
                 for item in working_dir.children:
-                    if item.name == f"{working_dir.name}/{tokens[2]}" and (isinstance(item, Directory) or isinstance(item, File)):
-                        remove_dir(item.name)
+                    if item.name == f"{working_dir.name}/{tokens[2]}":
+                        if isinstance(item, Directory):
+                            remove_dir(item.name)
+                        else:
+                            remove_file(item.name)
+                        
                         working_dir.children.remove(item)
                         
                         # Check if home Directory still exists -> Make a new one if it does NOT exist
                         if not os.path.exists("home"):
-                            os.mkdir(f"home")
+                            os.mkdir("home")
                             
                         found = True
                 print("No such file or directory") if not found else None
@@ -230,17 +235,43 @@ def Parser(text):
                         else:
                             new_name = f"{dest_path}/{item_name_tokens[-1]}"
                         
-                        # Remove from old Directory
-                        working_dir.children.remove(item)
+                        # Check if an item of the same name exists in new Directory
+                        valid_move = True
+                        for elem in dest_item.children:
+                            if elem.name == new_name:
+                                print(f"{item_name_tokens[-1]}{item_name_ext} already exists in {dest_path}")
+                                valid_move = False
+                                break
                         
-                        # Update item path
-                        item.name = new_name
-                        
-                        # Add to new Directory
-                        dest_item.children.append(item)
-                        
-                        print(f"Moved {item.name} to {new_name}")
-                        break
+                        if valid_move:
+                            # Remove from old Directory
+                            working_dir.children.remove(item)
+                            
+                            print(item)
+                            for dex, thing in enumerate(working_dir.children):
+                                print(dex+1, thing, thing.name)
+                            
+                            #print(f"removed {item.name} from children")
+                            if isinstance(item, File):
+                                os.remove(f"{item.name}")
+                                #print("removed file")
+                            else:
+                                remove_dir(item.name)
+                                #print("removed dir")
+                            
+                            # Update item path
+                            item.name = new_name
+                            
+                            # Add to new Directory
+                            dest_item.children.append(item)
+                            
+                            if isinstance(item, File):
+                                make_file(f"{item_name_tokens[-1]}{item_name_ext}", item.name)
+                            else:
+                                os.mkdir(item.name)
+                            
+                            print(f"Moved {item_name_tokens[-1]}{item_name_ext} from {working_dir.name} to {dest_path}")
+                            break
     
 # Main Loop
 while running:
