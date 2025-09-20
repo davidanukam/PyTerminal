@@ -204,74 +204,57 @@ def Parser(text):
     # NOTE: Move Directory / File
     if tokens[0] == "mv":
         if len(tokens) == 3:
-            target = tokens[1]
-            target_root, target_ext = os.path.splitext(target)
-            dest = tokens[2]
-            dest_root, dest_ext = os.path.splitext(dest)
-            
-            dest_item = None
-            dest_path = f"{working_dir.name}"
-            valid_dest = False
-            
-            for item in working_dir.children:
-                item_name_root, item_name_ext = os.path.splitext(item.name)
-                if item_name_root == f"{working_dir.name}/{dest_root}":
-                    if isinstance(item, File):
-                        print(f"{dest_root} is a File. Destination must be a Directory")
-                    else:
-                        valid_dest = True
-                        dest_item = item
-                        dest_path = f"{working_dir.name}/{dest_root}"
-            
-            # Move to dest Directory
-            if valid_dest:
-                for item in working_dir.children:
-                    item_name_root, item_name_ext = os.path.splitext(item.name)
-                    item_name_tokens = item_name_root.split("/")
-                    if item_name_root == f"{working_dir.name}/{target_root}":
-                        new_name = ""
-                        if isinstance(item, File):
-                            new_name = f"{dest_path}/{item_name_tokens[-1]}{item_name_ext}"
-                        else:
-                            new_name = f"{dest_path}/{item_name_tokens[-1]}"
-                        
-                        # Check if an item of the same name exists in new Directory
-                        valid_move = True
-                        for elem in dest_item.children:
-                            if elem.name == new_name:
-                                print(f"{item_name_tokens[-1]}{item_name_ext} already exists in {dest_path}")
-                                valid_move = False
-                                break
-                        
-                        if valid_move:
-                            # Remove from old Directory
-                            working_dir.children.remove(item)
-                            
-                            print(item)
-                            for dex, thing in enumerate(working_dir.children):
-                                print(dex+1, thing, thing.name)
-                            
-                            #print(f"removed {item.name} from children")
-                            if isinstance(item, File):
-                                os.remove(f"{item.name}")
-                                #print("removed file")
-                            else:
-                                remove_dir(item.name)
-                                #print("removed dir")
-                            
-                            # Update item path
-                            item.name = new_name
-                            
-                            # Add to new Directory
-                            dest_item.children.append(item)
-                            
-                            if isinstance(item, File):
-                                make_file(f"{item_name_tokens[-1]}{item_name_ext}", item.name)
-                            else:
-                                os.mkdir(item.name)
-                            
-                            print(f"Moved {item_name_tokens[-1]}{item_name_ext} from {working_dir.name} to {dest_path}")
+            target_name = tokens[1]
+            dest_name = tokens[2]
+
+            target_path = os.path.join(working_dir.name, target_name)
+            dest_path = os.path.join(working_dir.name, dest_name)
+
+            if not os.path.exists(target_path):
+                print(f"No such file or directory: {target_name}")
+                return None
+
+            if not os.path.isdir(dest_path):
+                print(f"{dest_name} is not a directory. Destination must be a directory.")
+                return None
+
+            try:
+                # Check if the destination already contains an item with the same name
+                final_path = os.path.join(dest_path, target_name)
+                if os.path.exists(final_path):
+                    print(f"{target_name} already exists in {dest_name}.")
+                    return None
+
+                shutil.move(target_path, dest_path)
+
+                # Now, update the internal data structures
+                moved_item = None
+                for i, item in enumerate(working_dir.children):
+                    if get_dir_name(item) == target_name:
+                        moved_item = working_dir.children.pop(i)
+                        break
+
+                if moved_item:
+                    # Find the destination Directory object
+                    dest_dir_obj = None
+                    for item in working_dir.children:
+                        if get_dir_name(item) == dest_name:
+                            dest_dir_obj = item
                             break
+                        
+                    if dest_dir_obj:
+                        # Update the moved item's name and parent
+                        moved_item.name = f"{dest_dir_obj.name}/{target_name}"
+                        moved_item.parent = dest_dir_obj
+                        dest_dir_obj.children.append(moved_item)
+                    else:
+                        print("Error: Destination directory object not found.")
+                else:
+                    print("Error: Item to be moved not found in current directory's children.")
+            except Exception as e:
+                print(f"Error moving file/directory: {e}")
+        else:
+            print("Usage: mv <source> <destination>")
     
 # Main Loop
 while running:
