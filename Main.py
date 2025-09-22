@@ -6,7 +6,7 @@ import os
 import shutil
 import time
 
-# TODO: pwd, date, cal (calendar), cp (-r), help (h), find, tar
+# TODO: date, cal (calendar), cp (-r), help (h), find, tar
 # TODO: for inputs that require more than 1 token --> If only 1 token is given, then say eg. Usage: rm [-rR] <dir/file>
 
 RED = '\033[31m'
@@ -71,19 +71,15 @@ def Parser(text):
         else:
             print(f"{file_name} file already exists")
     
-    def open_file(args):
-        global working_dir
-        for item in working_dir.children:
-            if item.name == f"{working_dir.name}/{tokens[1]}":
-                if isinstance(item, File):
-                    with open(f"{item.name}") as f:
-                        print(f.read())
-                else:
-                    print(f"{args[0]} is not a directory")
-    
     ### INFO: Parser Logic ###
     
-    # NOTE: Make file
+    # NOTE: Print Working Directory
+    def handle_pwd(args):
+        global working_dir
+        if not args:
+            print(f"{get_dir_name(working_dir)}\t")
+    
+    # NOTE: Make File
     def handle_touch(args):
         global working_dir
         if len(tokens) == 2:
@@ -96,7 +92,18 @@ def Parser(text):
             else:
                 print("Invalid file name (only 1 . allowed)")
     
-    # NOTE: List Directory
+    # NOTE: Open file
+    def handle_nano(args):
+        if len(args) == 1:
+            for item in working_dir.children:
+                if item.name == f"{working_dir.name}/{args[0]}":
+                    if isinstance(item, File):
+                        with open(f"{item.name}") as f:
+                            print(f.read())
+                    else:
+                        print(f"{args[0]} is not a directory")
+    
+    # NOTE: List Directory / File
     def handle_ls(args):
         global working_dir
         if not args:
@@ -142,6 +149,46 @@ def Parser(text):
         else:
             print("Usage: mkdir/mkd <directory_name>")
 
+    # NOTE: Remove Directory / File
+    def handle_rm(args):
+        global working_dir
+        if not args:
+            print("Usage: rmdir/rm [-r/-R] <directory_name/file_name>")
+        if len(args) == 1:
+            # Find and remove File
+            found = False
+            for item in working_dir.children:
+                if isinstance(item, File):
+                    if item.name == f"{working_dir.name}/{args[0]}":
+                        remove_file(item.name)
+                        
+                        working_dir.children.remove(item)
+                        found = True
+                else:
+                    if item.name == f"{working_dir.name}/{args[0]}":
+                        print(f"{tokens[1]} is a directory. Please use the '-r' or '-R' alias")
+                        found = True
+            print("No such file or directory") if not found else None
+        elif len(args) == 2:
+            if args[0] in ["-r", "-R"]:
+                # Find and remove Directory or File
+                found = False
+                for item in working_dir.children:
+                    if item.name == f"{working_dir.name}/{args[1]}":
+                        if isinstance(item, Directory):
+                            remove_dir(item.name)
+                        else:
+                            remove_file(item.name)
+                        
+                        working_dir.children.remove(item)
+                        
+                        # Check if home Directory still exists -> Make a new one if it does NOT exist
+                        if not os.path.exists("home"):
+                            os.mkdir("home")
+                            
+                        found = True
+                print("No such file or directory") if not found else None
+    
     # NOTE: Change Directory
     def handle_cd(args):
         global working_dir
@@ -169,11 +216,65 @@ def Parser(text):
         else:
             print("Usage: cd <directory_name>")
     
+    # NOTE: Move Directory / File
+    def handle_mv(args):
+        global working_dir
+        if len(args) == 2:
+            target_name = args[0]
+            dest_name = args[1]
+
+            target_path = os.path.join(working_dir.name, target_name)
+            dest_path = os.path.join(working_dir.name, dest_name)
+
+            if not os.path.exists(target_path):
+                print(f"No such file or directory: {target_name}")
+                return None
+
+            if not os.path.isdir(dest_path):
+                print(f"{dest_name} is not a directory. Destination must be a directory.")
+                return None
+
+            try:
+                # Check if the destination already contains an item with the same name
+                final_path = os.path.join(dest_path, target_name)
+                if os.path.exists(final_path):
+                    print(f"{target_name} already exists in {dest_name}.")
+                    return None
+
+                shutil.move(target_path, dest_path)
+
+                # Now, update the internal data structures
+                moved_item = None
+                for i, item in enumerate(working_dir.children):
+                    if get_dir_name(item) == target_name:
+                        moved_item = working_dir.children.pop(i)
+                        break
+
+                if moved_item:
+                    # Find the destination Directory object
+                    dest_dir_obj = None
+                    for item in working_dir.children:
+                        if get_dir_name(item) == dest_name:
+                            dest_dir_obj = item
+                            break
+                        
+                    if dest_dir_obj:
+                        # Update the moved item's name and parent
+                        moved_item.name = f"{dest_dir_obj.name}/{target_name}"
+                        moved_item.parent = dest_dir_obj
+                        dest_dir_obj.children.append(moved_item)
+                    else:
+                        print("Error: Destination directory object not found.")
+                else:
+                    print("Error: Item to be moved not found in current directory's children.")
+            except Exception as e:
+                print(f"Error moving file/directory: {e}")
+        else:
+            print("Usage: mv <source> <destination>")
+    
     commands = {
+        "pwd": handle_pwd,
         "ls": handle_ls,
-        
-        "mkdir": handle_mkdir,
-        "mkd": handle_mkdir,
         
         "cd": handle_cd,
         "cd..": handle_cd,
@@ -181,12 +282,21 @@ def Parser(text):
         "touch": handle_touch,
         "t": handle_touch,
         
-        # 'rm': handle_rm,
+        "mkdir": handle_mkdir,
+        "mkd": handle_mkdir,
+        
+        "rmdir": handle_rm,
+        "rm": handle_rm,
+        
+        "mv": handle_mv,
+        
+        "nano": handle_nano,
+        "n": handle_nano,
     }
     
     if command in commands:
         commands[command](args)
-    elif command in ['q', 'clear', 'cls']:
+    elif command in ['q', "clear", "cls", "c"]:
         if command == 'q':
             running = False
             remove_dir("home")
