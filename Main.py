@@ -78,6 +78,10 @@ def Parser(text):
         global working_dir
         if not args:
             print(f"{get_dir_name(working_dir)}\t")
+            
+    # NOTE: Print Date
+    def handle_date(args):
+        print(f"{datetime.now().strftime("%a")} {datetime.now().strftime("%b")} {datetime.now().strftime("%d")} {datetime.now().strftime("%Y")} {datetime.now().strftime("%H")}:{datetime.now().strftime("%M")}:{datetime.now().strftime("%S")} {datetime.now().strftime("%p")}")
     
     # NOTE: Make File
     def handle_touch(args):
@@ -274,6 +278,9 @@ def Parser(text):
     
     commands = {
         "pwd": handle_pwd,
+        
+        "date": handle_date,
+        
         "ls": handle_ls,
         
         "cd": handle_cd,
