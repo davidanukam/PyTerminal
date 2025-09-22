@@ -2,11 +2,9 @@ from Directory import Directory
 from File import File
 
 from datetime import datetime
-import os
-import shutil
-import time
+import os, shutil, calendar, time
 
-# TODO: date, cal (calendar), cp (-r), help (h), find, tar
+# TODO: cp (-r), help (h), find, tar
 # TODO: for inputs that require more than 1 token --> If only 1 token is given, then say eg. Usage: rm [-rR] <dir/file>
 
 RED = '\033[31m'
@@ -30,7 +28,8 @@ os.system("cls")
 
 home = Directory(name) if name.isalpha() else Directory("home")
 working_dir = home
-os.mkdir(home.name)
+if not os.path.exists("home"):
+    os.mkdir(home.name)
 
 ### INFO: Helper Functions ###
 
@@ -82,7 +81,12 @@ def Parser(text):
     # NOTE: Print Date
     def handle_date(args):
         print(f"{datetime.now().strftime("%a")} {datetime.now().strftime("%b")} {datetime.now().strftime("%d")} {datetime.now().strftime("%Y")} {datetime.now().strftime("%H")}:{datetime.now().strftime("%M")}:{datetime.now().strftime("%S")} {datetime.now().strftime("%p")}")
-    
+        
+    # NOTE: Print Calendar
+    def handle_cal(args):
+        cal = calendar.TextCalendar(calendar.SUNDAY)
+        print(cal.formatmonth(int(datetime.now().strftime("%Y")), int(datetime.now().strftime("%m")[1]) if datetime.now().strftime("%m")[0] != 1 else int(datetime.now().strftime("%m"))))
+        
     # NOTE: Make File
     def handle_touch(args):
         global working_dir
@@ -280,6 +284,7 @@ def Parser(text):
         "pwd": handle_pwd,
         
         "date": handle_date,
+        "cal" : handle_cal,
         
         "ls": handle_ls,
         
