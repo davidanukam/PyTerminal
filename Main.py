@@ -2,9 +2,9 @@ from Directory import Directory
 from File import File
 
 from datetime import datetime
-import os, shutil, calendar, time
+import os, shutil, calendar, copy, time
 
-# TODO: cp (-r), help (h), find, tar
+# TODO: help (h), find, tar
 # TODO: for inputs that require more than 1 token --> If only 1 token is given, then say eg. Usage: rm [-rR] <dir/file>
 
 RED = '\033[31m'
@@ -280,6 +280,62 @@ def Parser(text):
         else:
             print("Usage: mv <source> <destination>")
     
+    # NOTE: Copy Directory / File
+    def handle_cp(args):
+        global working_dir
+        if len(args) == 2:
+            target_name = args[0]
+            dest_name = args[1]
+            
+            target_path = os.path.join(working_dir.name, target_name)
+            dest_path = os.path.join(working_dir.name, dest_name)
+
+            if not os.path.exists(target_path):
+                print(f"No such file or directory: {target_name}")
+                return None
+
+            if not os.path.isdir(dest_path):
+                print(f"{dest_name} is not a directory. Destination must be a directory.")
+                return None
+
+            try:
+                # Check if the destination already contains an item with the same name
+                final_path = os.path.join(dest_path, target_name)
+                if os.path.exists(final_path):
+                    print(f"{target_name} already exists in {dest_name}.")
+                    return None
+
+                shutil.copy(target_path, dest_path)
+
+                # Now, update the internal data structures
+                copied_item = None
+                for i, item in enumerate(working_dir.children):
+                    if get_dir_name(item) == target_name:
+                        copied_item = copy.deepcopy(working_dir.children[i])
+                        break
+
+                if copied_item:
+                    # Find the destination Directory object
+                    dest_dir_obj = None
+                    for item in working_dir.children:
+                        if get_dir_name(item) == dest_name:
+                            dest_dir_obj = item
+                            break
+                        
+                    if dest_dir_obj:
+                        # Update the copied item's name and parent
+                        copied_item.name = f"{dest_dir_obj.name}/{target_name}"
+                        copied_item.parent = dest_dir_obj
+                        dest_dir_obj.children.append(copied_item)
+                    else:
+                        print("Error: Destination directory object not found.")
+                else:
+                    print("Error: Item to be moved not found in current directory's children.")
+            except Exception as e:
+                print(f"Error moving file/directory: {e}")
+        else:
+            print("Usage: mv <source> <destination>")
+    
     commands = {
         "pwd": handle_pwd,
         
@@ -301,6 +357,7 @@ def Parser(text):
         "rm": handle_rm,
         
         "mv": handle_mv,
+        "cp": handle_cp,
         
         "nano": handle_nano,
         "n": handle_nano,
