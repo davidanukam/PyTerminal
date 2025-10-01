@@ -336,8 +336,20 @@ def Parser(text):
         else:
             print("Usage: mv <source> <destination>")
     
+    def handle_help(args):
+        print("For more information on a specific command, type: help <command-name>")
+        past_func = None
+        for command, function in commands.items():
+            if function != past_func:
+                print("")
+                past_func = function
+            print(command)
+    
     commands = {
         "pwd": handle_pwd,
+        
+        "help": handle_help,
+        "h": handle_help,
         
         "date": handle_date,
         "cal" : handle_cal,
